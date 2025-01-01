@@ -1,0 +1,470 @@
+<html>
+<head>
+<title>SVMK_GianlucaCaregnato_2157859.ipynb</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #7a7e85;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #2aacb8;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+SVMK_GianlucaCaregnato_2157859.ipynb</font>
+</center></td></tr></table>
+<pre><span class="s0">#%% md 
+</span><span class="s1">#  Regression on Diamonds Price Dataset with SVM 
+ 
+The **Diamonds dataset** from Kaggle is a dataset containing information about the physical and pricing attributes of nearly 54,000 diamonds. The dataset is commonly employed in tasks like regression analysis, feature engineering, and exploratory data analysis. 
+ 
+We will consider a **reduced version** of the dataset, containing 4000 samples, and without categorical features. 
+ 
+### Key Features: 
+- **Carat**: The weight of the diamond. 
+- **Depth**: The total depth percentage (z / mean(x, y)). 
+- **Table**: Width of the diamond's top as a percentage of its widest point. 
+- **Price**: Price in US dollars. 
+- **X, Y, Z**: Dimensions of the diamond in mm (length, width, depth). 
+ 
+This dataset is useful for exploring relationships between physical attributes and pricing, and for building predictive models to estimate diamond prices based on their features. 
+ 
+For more information see: https://www.kaggle.com/datasets/shivam2503/diamonds. 
+</span><span class="s0">#%% md 
+</span><span class="s1"># Overview 
+ 
+In the notebook you will perform a complete pipeline of machine learning - regression task. First, you will: 
+- split the data into training, validation, and test; 
+- standardize the data. 
+ 
+You will then be asked to learn various SVM models, in particular: 
+- for each of the kernels *linear*, *poly*, *rbf*, and *sigmoid*, you will learn the best model, choosing among some fixed values of the considered hyperparameters. In particular, the choice of hyperparameters must be done with **5-fold cross-validation**, as we have seen in the labs. 
+ 
+Then, from the models trained with the best hyperparameters selected as above, you will: 
+- choose the best kernel, using a validation approach (not cross-validation), and 
+- learn the best SVM model overall. 
+ 
+Furthermore, you will then be asked to estimate the generalization error of the best SVM model you report.  
+ 
+At the end, just for comparison, you will also be asked to learn a standard linear regression model (with squared loss), and estimate its generalization error. 
+ 
+### IMPORTANT 
+- Note that in each of the above steps you will have to choose the appropriate split of the data (see the first bullet point above); 
+- The code should run without requiring modifications even if some best choice of parameters, changes; for example, you should not pass the best value of hyperparameters &quot;manually&quot; (i.e., passing the values as input parameters to the models). The only exception is in the TO DO titled 'ANSWER THE FOLLOWING' 
+- $\texttt{epsilon}$ parameter: For SVM, since the values to be predicted are all in the thousands of dollars, you will need to always set $\texttt{epsilon} = 100$ 
+- Do not change the printing instructions (other than adding the correct variable name for your code), and do not add printing instructions! 
+</span><span class="s0">#%% md 
+</span><span class="s1">## TO DO - INSERT YOUR NUMERO DI MATRICOLA BELOW 
+</span><span class="s0">#%% 
+# -- put here your ID number (numero di matricola)</span>
+<span class="s1">numero_di_matricola </span><span class="s2">= </span><span class="s3">2157859 </span><span class="s0"># COMPLETE</span>
+<span class="s0">#%% md 
+</span><span class="s1">The following code loads all required packages 
+</span><span class="s0">#%% 
+# -- import all packages needed</span>
+<span class="s4">import </span><span class="s1">pandas </span><span class="s4">as </span><span class="s1">pd</span>
+<span class="s4">import </span><span class="s1">numpy </span><span class="s4">as </span><span class="s1">np</span>
+<span class="s4">from </span><span class="s1">sklearn</span><span class="s2">.</span><span class="s1">model_selection </span><span class="s4">import </span><span class="s1">train_test_split</span>
+<span class="s4">from </span><span class="s1">sklearn </span><span class="s4">import </span><span class="s1">preprocessing</span>
+<span class="s4">from </span><span class="s1">sklearn </span><span class="s4">import </span><span class="s1">svm</span>
+<span class="s4">from </span><span class="s1">sklearn </span><span class="s4">import </span><span class="s1">model_selection</span>
+<span class="s4">from </span><span class="s1">sklearn </span><span class="s4">import </span><span class="s1">linear_model</span>
+<span class="s4">from </span><span class="s1">sklearn</span><span class="s2">.</span><span class="s1">model_selection </span><span class="s4">import </span><span class="s1">KFold</span>
+<span class="s4">from </span><span class="s1">itertools </span><span class="s4">import </span><span class="s1">product</span>
+<span class="s0">#%% md 
+</span><span class="s1">The code below loads the data and remove samples with missing values. It also prints the number of samples and a brief description of our dataset. 
+</span><span class="s0">#%% 
+# -- load the data - do not change the path below!</span>
+<span class="s1">df </span><span class="s2">= </span><span class="s1">pd</span><span class="s2">.</span><span class="s1">read_csv</span><span class="s2">(</span><span class="s5">'diamonds.csv'</span><span class="s2">, </span><span class="s1">sep </span><span class="s2">= </span><span class="s5">','</span><span class="s2">)</span>
+
+<span class="s0"># -- remove the data samples with missing values (NaN)</span>
+<span class="s1">df </span><span class="s2">= </span><span class="s1">df</span><span class="s2">.</span><span class="s1">dropna</span><span class="s2">()</span>
+<span class="s0"># -- let's drop the column containing the id of the data</span>
+<span class="s1">df </span><span class="s2">= </span><span class="s1">df</span><span class="s2">.</span><span class="s1">drop</span><span class="s2">(</span><span class="s1">columns</span><span class="s2">=[</span><span class="s5">'Unnamed: 0'</span><span class="s2">], </span><span class="s1">axis</span><span class="s2">=</span><span class="s3">1</span><span class="s2">)</span>
+<span class="s0">#%% 
+</span><span class="s1">print</span><span class="s2">(</span><span class="s5">'Dataset shape:'</span><span class="s2">, </span><span class="s1">df</span><span class="s2">.</span><span class="s1">shape</span><span class="s2">)</span>
+<span class="s0"># -- description of dataset</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s1">df</span><span class="s2">.</span><span class="s1">describe</span><span class="s2">())</span>
+<span class="s0">#%% 
+</span><span class="s1">print</span><span class="s2">(</span><span class="s5">'First 5 samples of the dataset:</span><span class="s4">\n\n</span><span class="s5">'</span><span class="s2">, </span><span class="s1">df</span><span class="s2">.</span><span class="s1">head</span><span class="s2">(</span><span class="s3">5</span><span class="s2">))</span>
+<span class="s0">#%% md 
+</span><span class="s1">In the following cell, we convert our (pandas) dataframe into set X (containing our features) and the set Y (containing our target, i.e., the price) 
+</span><span class="s0">#%% 
+</span><span class="s1">m </span><span class="s2">= </span><span class="s1">df</span><span class="s2">.</span><span class="s1">shape</span><span class="s2">[</span><span class="s3">0</span><span class="s2">]</span>
+
+<span class="s0"># -- let's compute X and Y sets</span>
+<span class="s1">X </span><span class="s2">= </span><span class="s1">df</span><span class="s2">.</span><span class="s1">drop</span><span class="s2">(</span><span class="s1">columns</span><span class="s2">=[</span><span class="s5">'price'</span><span class="s2">], </span><span class="s1">axis</span><span class="s2">=</span><span class="s3">1</span><span class="s2">)</span>
+<span class="s1">Y </span><span class="s2">= </span><span class="s1">df</span><span class="s2">[</span><span class="s5">'price'</span><span class="s2">]</span>
+
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Total number of samples:&quot;</span><span class="s2">, </span><span class="s1">m</span><span class="s2">)</span>
+
+<span class="s1">X </span><span class="s2">= </span><span class="s1">X</span><span class="s2">.</span><span class="s1">values</span>
+<span class="s1">Y </span><span class="s2">= </span><span class="s1">Y</span><span class="s2">.</span><span class="s1">values</span>
+
+<span class="s0"># -- print shapes</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">'X shape: '</span><span class="s2">, </span><span class="s1">X</span><span class="s2">.</span><span class="s1">shape</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">'Y shape: '</span><span class="s2">, </span><span class="s1">Y</span><span class="s2">.</span><span class="s1">shape</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1"># Data preprocessing 
+</span><span class="s0">#%% md 
+</span><span class="s1">## TO DO - SPLIT DATA INTO TRAINING, VALIDATION, AND TESTING, WITH THE FOLLOWING PERCENTAGES: 60%, 20%, 20% 
+ 
+Use the $\texttt{train\_test\_split}$ function from sklearn.model_selection to do it; in every call fix $\texttt{random\_state}$ to your numero_di_matricola.  
+At the end, you should store the data in the following variables: 
+- X_train, Y_train: training data; 
+- X_val, Y_val: validation data; 
+- X_train_val, Y_train_val: training and validation data; 
+- X_test, Y_test: test data. 
+ 
+The code then prints the number of samples in X_train, X_val, X_train_val, and X_test 
+ 
+**IMPORTANT:** 
+- first split the data into training+validation and test; the first part of the data in output from $\texttt{train\_test\_split}$ must correspond to the training+validation; 
+- then split training+validation into training and validation; the first part of the data in output from $\texttt{train\_test\_split}$ must correspond to the training 
+ 
+</span><span class="s0">#%% 
+# -- split the data into training + validation and test</span>
+<span class="s0"># -- TODO</span>
+<span class="s1">m_train </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s3">6</span><span class="s2">/</span><span class="s3">10 </span><span class="s2">* </span><span class="s1">m</span><span class="s2">)</span>
+<span class="s1">m_val </span><span class="s2">= (</span><span class="s1">m </span><span class="s2">- </span><span class="s1">m_train</span><span class="s2">) // </span><span class="s3">2</span>
+<span class="s1">m_test </span><span class="s2">= </span><span class="s1">m </span><span class="s2">- </span><span class="s1">m_train </span><span class="s2">- </span><span class="s1">m_val</span>
+
+<span class="s1">X_train_val</span><span class="s2">, </span><span class="s1">X_test</span><span class="s2">, </span><span class="s1">Y_train_val</span><span class="s2">, </span><span class="s1">Y_test </span><span class="s2">= </span><span class="s1">train_test_split</span><span class="s2">(</span><span class="s1">X</span><span class="s2">, </span><span class="s1">Y</span><span class="s2">, </span><span class="s1">test_size </span><span class="s2">= </span><span class="s1">m_test</span><span class="s2">, </span><span class="s1">random_state </span><span class="s2">= </span><span class="s1">numero_di_matricola</span><span class="s2">)</span>
+
+<span class="s0"># -- split the training + validation data into training and validation</span>
+<span class="s0"># -- TODO</span>
+
+<span class="s1">X_train</span><span class="s2">, </span><span class="s1">X_val</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">, </span><span class="s1">Y_val </span><span class="s2">= </span><span class="s1">train_test_split</span><span class="s2">(</span><span class="s1">X_train_val</span><span class="s2">, </span><span class="s1">Y_train_val</span><span class="s2">, </span><span class="s1">test_size </span><span class="s2">= </span><span class="s1">m_val</span><span class="s2">, </span><span class="s1">random_state </span><span class="s2">= </span><span class="s1">numero_di_matricola</span><span class="s2">)</span>
+
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Training size:&quot;</span><span class="s2">, </span><span class="s1">X_train</span><span class="s2">.</span><span class="s1">shape</span><span class="s2">[</span><span class="s3">0</span><span class="s2">])</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Validation size:&quot;</span><span class="s2">, </span><span class="s1">X_val</span><span class="s2">.</span><span class="s1">shape</span><span class="s2">[</span><span class="s3">0</span><span class="s2">])</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Training and validation size:&quot;</span><span class="s2">, </span><span class="s1">X_train_val</span><span class="s2">.</span><span class="s1">shape</span><span class="s2">[</span><span class="s3">0</span><span class="s2">])</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Test size:&quot;</span><span class="s2">, </span><span class="s1">X_test</span><span class="s2">.</span><span class="s1">shape</span><span class="s2">[</span><span class="s3">0</span><span class="s2">])</span>
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO - STANDARDIZE THE DATA 
+ 
+Standardize the data using the $\texttt{preprocessing.StandardScaler}$ from scikit learn. 
+ 
+If V is the name of the variable storing part of the data, the corresponding standardized version should be stored in V_scaled. For example, the scaled version of X_train should be stored in X_train_scaled. 
+</span><span class="s0">#%% 
+# -- TODO</span>
+<span class="s1">scaler </span><span class="s2">= </span><span class="s1">preprocessing</span><span class="s2">.</span><span class="s1">StandardScaler</span><span class="s2">().</span><span class="s1">fit</span><span class="s2">(</span><span class="s1">X_train</span><span class="s2">)</span>
+<span class="s1">X_train_scaled </span><span class="s2">= </span><span class="s1">scaler</span><span class="s2">.</span><span class="s1">transform</span><span class="s2">(</span><span class="s1">X_train</span><span class="s2">)</span>
+<span class="s1">X_train_and_val_scaled </span><span class="s2">= </span><span class="s1">scaler</span><span class="s2">.</span><span class="s1">transform</span><span class="s2">(</span><span class="s1">X_train_val</span><span class="s2">)</span>
+<span class="s1">X_val_scaled </span><span class="s2">= </span><span class="s1">scaler</span><span class="s2">.</span><span class="s1">transform</span><span class="s2">(</span><span class="s1">X_val</span><span class="s2">)</span>
+<span class="s1">X_test_scaled </span><span class="s2">= </span><span class="s1">scaler</span><span class="s2">.</span><span class="s1">transform</span><span class="s2">(</span><span class="s1">X_test</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1"># SVM models: learning the best model for each kernel 
+</span><span class="s0">#%% md 
+</span><span class="s1">The following function, i.e., $\texttt{k\_fold\_cross\_validation}$, will perform $k$-fold cross validation (with $k$ = 5 by default). Look carefully at the signature of the below function: you have in input some sets X and Y, the default number of folds, and a length-variable keyword argumens, with which the SVM model will be trained in the cross-validation phase. If you are not familiar with the notation, look at kwargs in Python documentation. 
+ 
+In the first lines of the below function, the unpacked parameters (i.e., input parameter $\texttt{param\_grid}$) are converted into a python list by means of cartesian product. The resulting list (i.e., $\texttt{param\_list}$) will be the one for which you need to iterate over and perform $k$-fold cross-validation, using $\texttt{KFold}$ object frmo scikit-learn. 
+ 
+At the end, note that you need to return $\texttt{best\_param}$, that is the best set of parameters you found with the cross-validation procedure.  
+</span><span class="s0">#%% 
+</span><span class="s4">def </span><span class="s1">k_fold_cross_validation</span><span class="s2">(</span><span class="s1">X</span><span class="s2">, </span><span class="s1">Y</span><span class="s2">, </span><span class="s1">num_folds </span><span class="s2">= </span><span class="s3">5</span><span class="s2">, **</span><span class="s1">param_grid</span><span class="s2">):</span>
+
+    <span class="s0"># -- grid of hyperparams into list</span>
+    <span class="s1">param_keys </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">param_grid</span><span class="s2">.</span><span class="s1">keys</span><span class="s2">())</span>
+    <span class="s1">param_values </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">param_grid</span><span class="s2">.</span><span class="s1">values</span><span class="s2">())</span>
+    
+    <span class="s0"># Generate Cartesian product of values</span>
+    <span class="s1">combinations </span><span class="s2">= </span><span class="s1">product</span><span class="s2">(*</span><span class="s1">param_values</span><span class="s2">)</span>
+    
+    <span class="s0"># Create a list of dictionaries from combinations</span>
+    <span class="s1">param_list </span><span class="s2">= [</span><span class="s1">dict</span><span class="s2">(</span><span class="s1">zip</span><span class="s2">(</span><span class="s1">param_keys</span><span class="s2">, </span><span class="s1">combination</span><span class="s2">)) </span><span class="s4">for </span><span class="s1">combination </span><span class="s4">in </span><span class="s1">combinations</span><span class="s2">]</span>
+
+    <span class="s0"># -- TODO</span>
+
+    <span class="s1">kf </span><span class="s2">= </span><span class="s1">KFold</span><span class="s2">(</span><span class="s1">n_splits </span><span class="s2">= </span><span class="s1">num_folds</span><span class="s2">, </span><span class="s1">shuffle </span><span class="s2">= </span><span class="s4">True</span><span class="s2">, </span><span class="s1">random_state </span><span class="s2">= </span><span class="s1">numero_di_matricola</span><span class="s2">)</span>
+    <span class="s1">best_param </span><span class="s2">= </span><span class="s4">None</span>
+    <span class="s1">best_score </span><span class="s2">= </span><span class="s1">np</span><span class="s2">.</span><span class="s1">inf</span>
+
+    <span class="s0"># -- Iterate over all parameter combinations</span>
+    <span class="s4">for </span><span class="s1">params </span><span class="s4">in </span><span class="s1">param_list</span><span class="s2">:</span>
+        <span class="s1">avg_err_val_kfold </span><span class="s2">= </span><span class="s3">0</span>
+
+        <span class="s0"># -- Perform k-fold cross-validation</span>
+        <span class="s4">for </span><span class="s1">train_index</span><span class="s2">, </span><span class="s1">validation_index </span><span class="s4">in </span><span class="s1">kf</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s1">X</span><span class="s2">):</span>
+            <span class="s1">X_train_kfold</span><span class="s2">, </span><span class="s1">X_val_kfold </span><span class="s2">= </span><span class="s1">X</span><span class="s2">[</span><span class="s1">train_index</span><span class="s2">], </span><span class="s1">X</span><span class="s2">[</span><span class="s1">validation_index</span><span class="s2">]</span>
+            <span class="s1">Y_train_kfold</span><span class="s2">, </span><span class="s1">Y_val_kfold </span><span class="s2">= </span><span class="s1">Y</span><span class="s2">[</span><span class="s1">train_index</span><span class="s2">], </span><span class="s1">Y</span><span class="s2">[</span><span class="s1">validation_index</span><span class="s2">]</span>
+
+            <span class="s0"># -- data scaling: standardize features with respect to the current folds</span>
+            <span class="s1">scaler_kfold </span><span class="s2">= </span><span class="s1">preprocessing</span><span class="s2">.</span><span class="s1">StandardScaler</span><span class="s2">().</span><span class="s1">fit</span><span class="s2">(</span><span class="s1">X_train_kfold</span><span class="s2">)</span>
+            <span class="s1">X_train_kfold_scaled </span><span class="s2">= </span><span class="s1">scaler_kfold</span><span class="s2">.</span><span class="s1">transform</span><span class="s2">(</span><span class="s1">X_train_kfold</span><span class="s2">)</span>
+            <span class="s1">X_val_kfold_scaled </span><span class="s2">= </span><span class="s1">scaler_kfold</span><span class="s2">.</span><span class="s1">transform</span><span class="s2">(</span><span class="s1">X_val_kfold</span><span class="s2">)</span>
+
+            <span class="s0"># -- learn the model using the training data from the k-fold</span>
+            <span class="s1">model_svm </span><span class="s2">= </span><span class="s1">svm</span><span class="s2">.</span><span class="s1">SVR</span><span class="s2">(**</span><span class="s1">params</span><span class="s2">)</span>
+            <span class="s1">model_svm</span><span class="s2">.</span><span class="s1">fit</span><span class="s2">(</span><span class="s1">X_train_kfold_scaled</span><span class="s2">, </span><span class="s1">Y_train_kfold</span><span class="s2">)</span>
+
+            <span class="s0"># -- incremental mean</span>
+            <span class="s1">avg_err_val_kfold </span><span class="s2">+= </span><span class="s1">np</span><span class="s2">.</span><span class="s1">mean</span><span class="s2">((</span><span class="s1">Y_val_kfold </span><span class="s2">- </span><span class="s1">model_svm</span><span class="s2">.</span><span class="s1">predict</span><span class="s2">(</span><span class="s1">X_val_kfold_scaled</span><span class="s2">)) ** </span><span class="s3">2</span><span class="s2">)</span>
+
+        <span class="s0"># Calculate the average validation error for the current set of parameters</span>
+        <span class="s1">avg_err_val_kfold </span><span class="s2">/= </span><span class="s1">num_folds</span>
+
+        <span class="s0"># Update the best parameters if the current validation error is better</span>
+        <span class="s4">if </span><span class="s1">avg_err_val_kfold </span><span class="s2">&lt; </span><span class="s1">best_score</span><span class="s2">:</span>
+            <span class="s1">best_score </span><span class="s2">= </span><span class="s1">avg_err_val_kfold</span>
+            <span class="s1">best_param </span><span class="s2">= </span><span class="s1">params</span>
+
+    <span class="s4">return </span><span class="s1">best_param</span>
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO - CHOOSE THE BEST HYPERPARAMETERS FOR LINEAR KERNEL 
+ 
+For the SVM, consider $\texttt{svm.SVR}$ class. We will begin by training the SVM with linear kernel. For the latter, consider the following hyperparameters and their values: 
+ 
+- $C: [0.1, 1, 10, 100, 1000]$ 
+ 
+Remember that both the $\texttt{kernel}$ type and the value of $\texttt{epsilon}$ are considered as parameters to pass to the above method. Leave all other input parameters to default.  
+ 
+Find the best value of the hyperparameters using 5-fold cross validation. Use the function defined above to perform the cross-validation. 
+ 
+Print the best value of the hyperparameters. 
+</span><span class="s0">#%% 
+</span><span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;</span><span class="s4">\n</span><span class="s5">Linear SVM:&quot;</span><span class="s2">)</span>
+<span class="s1">best_params </span><span class="s2">= </span><span class="s1">k_fold_cross_validation</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">, </span><span class="s1">C </span><span class="s2">= [</span><span class="s3">0.1</span><span class="s2">, </span><span class="s3">1</span><span class="s2">, </span><span class="s3">10</span><span class="s2">, </span><span class="s3">100</span><span class="s2">, </span><span class="s3">1000</span><span class="s2">], </span><span class="s1">kernel </span><span class="s2">= [</span><span class="s5">'linear'</span><span class="s2">], </span><span class="s1">epsilon </span><span class="s2">= [</span><span class="s3">100</span><span class="s2">])</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Best value for hyperparameters: &quot;</span><span class="s2">, </span><span class="s1">best_params</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO - LEARN A MODEL WITH LINEAR KERNEL AND BEST CHOICE OF HYPERPARAMETERS 
+ 
+This model will be compared with the best models with other kernels using validation (not cross validation). 
+ 
+DO NOT PASS PARAMETERS BY HARD-CODING THEM IN THE CODE. 
+ 
+Print the **training score** (that is, $R^2$ coefficient) of the best model, trained with the best parameter find from the above cell. 
+</span><span class="s0">#%% 
+# -- TODO</span>
+<span class="s1">model_best </span><span class="s2">= </span><span class="s1">svm</span><span class="s2">.</span><span class="s1">SVR</span><span class="s2">(**</span><span class="s1">best_params</span><span class="s2">)</span>
+<span class="s1">model_best</span><span class="s2">.</span><span class="s1">fit</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">)</span>
+
+<span class="s0"># -- Print training score</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Training score:&quot;</span><span class="s2">, </span><span class="s1">model_best</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">))</span>
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO - CHOOSE THE BEST HYPERPARAMETERS FOR POLY KERNEL 
+ 
+Now, let's consider $\texttt{svm.SVR}$ with polynomial kernel. Consider the following hyperparameters and their values: 
+- $C: [0.1, 1, 10, 100, 1000]$ 
+- $degree: [2, 3, 4]$ 
+ 
+Leave all other input parameters to default.  
+ 
+Find the best value of the hyperparameters using 5-fold cross validation. Use the function defined above to perform the cross-validation. 
+ 
+Print the best value of the hyperparameters. 
+</span><span class="s0">#%% 
+</span><span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;</span><span class="s4">\n</span><span class="s5">Poly SVM&quot;</span><span class="s2">)</span>
+<span class="s0"># -- TODO</span>
+<span class="s1">best_params_poly </span><span class="s2">= </span><span class="s1">k_fold_cross_validation</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">, </span><span class="s1">C </span><span class="s2">= [</span><span class="s3">0.1</span><span class="s2">, </span><span class="s3">1</span><span class="s2">, </span><span class="s3">10</span><span class="s2">, </span><span class="s3">100</span><span class="s2">, </span><span class="s3">1000</span><span class="s2">], </span><span class="s1">kernel </span><span class="s2">= [</span><span class="s5">'poly'</span><span class="s2">], </span><span class="s1">degree </span><span class="s2">= [</span><span class="s3">2</span><span class="s2">, </span><span class="s3">3</span><span class="s2">, </span><span class="s3">4</span><span class="s2">], </span><span class="s1">epsilon </span><span class="s2">= [</span><span class="s3">100</span><span class="s2">])</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Best value for hyperparameters: &quot;</span><span class="s2">, </span><span class="s1">best_params_poly</span><span class="s2">)</span>
+
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO - LEARN A MODEL WITH POLY KERNEL AND BEST CHOICE OF HYPERPARAMETERS 
+ 
+This model will be compared with the best models with other kernels using validation (not cross validation). 
+ 
+DO NOT PASS PARAMETERS BY HARD-CODING THEM IN THE CODE. 
+ 
+Print the **training score** (that is, $R^2$ coefficient) of the best model, trained with the best parameter find from the above cell. 
+</span><span class="s0">#%% 
+# -- TODO</span>
+<span class="s1">model_best_poly </span><span class="s2">= </span><span class="s1">svm</span><span class="s2">.</span><span class="s1">SVR</span><span class="s2">(**</span><span class="s1">best_params_poly</span><span class="s2">)</span>
+<span class="s1">model_best_poly</span><span class="s2">.</span><span class="s1">fit</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">)</span>
+
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Training score:&quot;</span><span class="s2">, </span><span class="s1">model_best_poly</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">))</span>
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO - CHOOSE THE BEST HYPERPARAMETERS FOR RBF KERNEL 
+ 
+Consider $\texttt{svm.SVR}$ with RBF kernel. Consider the following hyperparameters and their values: 
+- $C: [0.1, 1, 10, 100, 1000]$ 
+- $gamma: [0.01, 0.03, 0.04, 0.05]$ 
+ 
+Leave all other input parameters to default.  
+ 
+Find the best value of the hyperparameters using 5-fold cross validation. Use the function defined above to perform the cross-validation. 
+ 
+Print the best value of the hyperparameters. 
+</span><span class="s0">#%% 
+</span><span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;</span><span class="s4">\n</span><span class="s5">RBF SVM&quot;</span><span class="s2">)</span>
+<span class="s0"># -- TODO</span>
+<span class="s1">best_params_rbf </span><span class="s2">= </span><span class="s1">k_fold_cross_validation</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">, </span><span class="s1">C </span><span class="s2">= [</span><span class="s3">0.1</span><span class="s2">, </span><span class="s3">1</span><span class="s2">, </span><span class="s3">10</span><span class="s2">, </span><span class="s3">100</span><span class="s2">, </span><span class="s3">1000</span><span class="s2">], </span><span class="s1">kernel </span><span class="s2">= [</span><span class="s5">'rbf'</span><span class="s2">], </span><span class="s1">gamma </span><span class="s2">= [</span><span class="s3">0.01</span><span class="s2">, </span><span class="s3">0.03</span><span class="s2">, </span><span class="s3">0.04</span><span class="s2">, </span><span class="s3">0.05</span><span class="s2">], </span><span class="s1">epsilon </span><span class="s2">= [</span><span class="s3">100</span><span class="s2">])</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Best value for hyperparameters: &quot;</span><span class="s2">, </span><span class="s1">best_params_rbf</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO - LEARN A MODEL WITH RBF KERNEL AND BEST CHOICE OF HYPERPARAMETERS 
+ 
+This model will be compared with the best models with other kernels using validation (not cross validation). 
+ 
+DO NOT PASS PARAMETERS BY HARD-CODING THEM IN THE CODE. 
+ 
+Print the **training score** (that is, $R^2$ coefficient) of the best model, trained with the best parameter find from the above cell. 
+</span><span class="s0">#%% 
+# -- TODO</span>
+<span class="s1">model_best_rbf </span><span class="s2">= </span><span class="s1">svm</span><span class="s2">.</span><span class="s1">SVR</span><span class="s2">(**</span><span class="s1">best_params_rbf</span><span class="s2">)</span>
+<span class="s1">model_best_rbf</span><span class="s2">.</span><span class="s1">fit</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">)</span>
+
+<span class="s0"># -- Print training score for RBF kernel</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Training score for RBF kernel:&quot;</span><span class="s2">, </span><span class="s1">model_best_rbf</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">))</span>
+
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO - CHOOSE THE BEST HYPERPARAMETERS FOR SIGMOID KERNEL 
+ 
+Consider $\texttt{svm.SVR}$ with sigmoid kernel. Consider the following hyperparameters and their values: 
+- $C: [0.1, 1, 10, 100, 1000]$ 
+- $gamma: [0.01, 0.05, 0.1]$ 
+- $coef0: [0, 1]$ 
+ 
+Leave all other input parameters to default.  
+ 
+Find the best value of the hyperparameters using 5-fold cross validation. Use the function defined above to perform the cross-validation. 
+ 
+Print the best value of the hyperparameters. 
+</span><span class="s0">#%% 
+</span><span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;</span><span class="s4">\n</span><span class="s5">Sigmoid SVM&quot;</span><span class="s2">)</span>
+<span class="s0"># -- TODO</span>
+<span class="s1">best_params_sigmoid </span><span class="s2">= </span><span class="s1">k_fold_cross_validation</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">, </span><span class="s1">C </span><span class="s2">= [</span><span class="s3">0.1</span><span class="s2">, </span><span class="s3">1</span><span class="s2">, </span><span class="s3">10</span><span class="s2">, </span><span class="s3">100</span><span class="s2">, </span><span class="s3">1000</span><span class="s2">], </span><span class="s1">kernel </span><span class="s2">= [</span><span class="s5">'sigmoid'</span><span class="s2">], </span><span class="s1">gamma </span><span class="s2">= [</span><span class="s3">0.01</span><span class="s2">, </span><span class="s3">0.05</span><span class="s2">, </span><span class="s3">0.1</span><span class="s2">], </span><span class="s1">coef0 </span><span class="s2">= [</span><span class="s3">0</span><span class="s2">, </span><span class="s3">1</span><span class="s2">], </span><span class="s1">epsilon </span><span class="s2">= [</span><span class="s3">100</span><span class="s2">])</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Best value for hyperparameters: &quot;</span><span class="s2">, </span><span class="s1">best_params_sigmoid</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO - LEARN A MODEL WITH SIGMOID KERNEL AND BEST CHOICE OF HYPERPARAMETERS 
+ 
+This model will be compared with the best models with other kernels using validation (not cross validation). 
+ 
+DO NOT PASS PARAMETERS BY HARD-CODING THEM IN THE CODE. 
+ 
+Print the **training score** (that is, $R^2$ coefficient) of the best model, trained with the best parameter find from the above cell. 
+</span><span class="s0">#%% 
+# -- TODO</span>
+<span class="s1">model_best_sigmoid </span><span class="s2">= </span><span class="s1">svm</span><span class="s2">.</span><span class="s1">SVR</span><span class="s2">(**</span><span class="s1">best_params_sigmoid</span><span class="s2">)</span>
+<span class="s1">model_best_sigmoid</span><span class="s2">.</span><span class="s1">fit</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">)</span>
+
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Training score:&quot;</span><span class="s2">, </span><span class="s1">model_best_sigmoid</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">))</span>
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO - USE VALIDATION TO CHOOSE THE BEST MODEL AMONG THE ONES LEARNED FOR THE VARIOUS KERNELS 
+ 
+Use validation to choose the best model among the four ones (one for each kernel) you have learned above. 
+ 
+Print, following exactly the order described here, with 1 value for each line: 
+- the validation score of SVM with linear kernel (the template below does not include such print) 
+- the validation score of SVM with polynomial kernel (the template below does not include such print) 
+- the validation score of SVM with rbf kernel (the template below does not include such print) 
+- the validation score of SVM with sigmoid kernel (the template below does not include such print) 
+- the best kernel (e.g., sigmoid)  
+- the validation score of the best kernel  
+ 
+For the first 4 prints, use the format: &quot;*kernel* validation score: &quot;. For example, for linear kernel &quot;linear validation score: &quot;, for rbf &quot;rbf validation score: &quot; 
+</span><span class="s0">#%% 
+</span><span class="s1">linear_validation_score </span><span class="s2">= </span><span class="s1">model_best</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_val_scaled</span><span class="s2">, </span><span class="s1">Y_val</span><span class="s2">)</span>
+<span class="s1">poly_validation_score </span><span class="s2">= </span><span class="s1">model_best_poly</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_val_scaled</span><span class="s2">, </span><span class="s1">Y_val</span><span class="s2">)</span>
+<span class="s1">rbf_validation_score </span><span class="s2">= </span><span class="s1">model_best_rbf</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_val_scaled</span><span class="s2">, </span><span class="s1">Y_val</span><span class="s2">)</span>
+<span class="s1">sigmoid_validation_score </span><span class="s2">= </span><span class="s1">model_best_sigmoid</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_val_scaled</span><span class="s2">, </span><span class="s1">Y_val</span><span class="s2">)</span>
+
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;linear validation score:&quot;</span><span class="s2">, </span><span class="s1">linear_validation_score</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;poly validation score:&quot;</span><span class="s2">, </span><span class="s1">poly_validation_score</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;rbf validation score:&quot;</span><span class="s2">, </span><span class="s1">rbf_validation_score</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;sigmoid validation score:&quot;</span><span class="s2">, </span><span class="s1">sigmoid_validation_score</span><span class="s2">)</span>
+
+<span class="s0"># Determine the best kernel based on validation score</span>
+<span class="s1">validation_scores </span><span class="s2">= {</span>
+    <span class="s5">'linear'</span><span class="s2">: </span><span class="s1">linear_validation_score</span><span class="s2">,</span>
+    <span class="s5">'poly'</span><span class="s2">: </span><span class="s1">poly_validation_score</span><span class="s2">,</span>
+    <span class="s5">'rbf'</span><span class="s2">: </span><span class="s1">rbf_validation_score</span><span class="s2">,</span>
+    <span class="s5">'sigmoid'</span><span class="s2">: </span><span class="s1">sigmoid_validation_score</span>
+<span class="s2">}</span>
+
+<span class="s1">best_kernel </span><span class="s2">= </span><span class="s1">max</span><span class="s2">(</span><span class="s1">validation_scores</span><span class="s2">, </span><span class="s1">key </span><span class="s2">= </span><span class="s1">validation_scores</span><span class="s2">.</span><span class="s1">get</span><span class="s2">)</span>
+<span class="s1">best_validation_score </span><span class="s2">= </span><span class="s1">validation_scores</span><span class="s2">[</span><span class="s1">best_kernel</span><span class="s2">]</span>
+
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;</span><span class="s4">\n</span><span class="s5">---</span><span class="s4">\n</span><span class="s5">Best kernel: &quot;</span><span class="s2">, </span><span class="s1">best_kernel</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Validation score of best kernel: &quot;</span><span class="s2">, </span><span class="s1">best_validation_score</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO - LEARN THE FINAL MODEL FOR WHICH YOU WANT TO ESTIMATE THE GENERALIZATION SCORE 
+ 
+Learn the final model (i.e., the one you would use to make predictions about future data). 
+ 
+Print the **final model hyperparameters** and the **score** of the model on the data used to learn it. 
+</span><span class="s0">#%% 
+</span><span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;</span><span class="s4">\n</span><span class="s5">BEST MODEL:&quot;</span><span class="s2">)</span>
+
+<span class="s0"># -- TODO</span>
+<span class="s4">if </span><span class="s1">best_kernel </span><span class="s2">== </span><span class="s5">'linear'</span><span class="s2">:</span>
+    <span class="s1">best_params_final </span><span class="s2">= </span><span class="s1">best_params</span>
+<span class="s4">elif </span><span class="s1">best_kernel </span><span class="s2">== </span><span class="s5">'poly'</span><span class="s2">:</span>
+    <span class="s1">best_params_final </span><span class="s2">= </span><span class="s1">best_params_poly</span>
+<span class="s4">elif </span><span class="s1">best_kernel </span><span class="s2">== </span><span class="s5">'rbf'</span><span class="s2">:</span>
+    <span class="s1">best_params_final </span><span class="s2">= </span><span class="s1">best_params_rbf</span>
+<span class="s4">elif </span><span class="s1">best_kernel </span><span class="s2">== </span><span class="s5">'sigmoid'</span><span class="s2">:</span>
+    <span class="s1">best_params_final </span><span class="s2">= </span><span class="s1">best_params_sigmoid</span>
+<span class="s4">else</span><span class="s2">:</span>
+    <span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Error&quot;</span><span class="s2">)</span>
+
+<span class="s1">model_final </span><span class="s2">= </span><span class="s1">svm</span><span class="s2">.</span><span class="s1">SVR</span><span class="s2">(**</span><span class="s1">best_params_final</span><span class="s2">)</span>
+<span class="s1">model_final</span><span class="s2">.</span><span class="s1">fit</span><span class="s2">(</span><span class="s1">X_train_and_val_scaled</span><span class="s2">, </span><span class="s1">Y_train_val</span><span class="s2">)</span>
+
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Best model hyperparameters:&quot;</span><span class="s2">, </span><span class="s1">best_params_final</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Score of the best model on the data used to learn it: &quot;</span><span class="s2">, </span><span class="s1">model_final</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_train_and_val_scaled</span><span class="s2">, </span><span class="s1">Y_train_val</span><span class="s2">))</span>
+
+
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO - PRINT THE ESTIMATE  OF THE GENERALIZATION SCORE FOR THE FINAL MODEL 
+ 
+Print the estimate of the generalization **score** for the final model. The generalization &quot;score&quot; is the score computed on the data used to estimate the generalization error. 
+</span><span class="s0">#%% 
+</span><span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;</span><span class="s4">\n</span><span class="s5">GENERALIZATION SCORE BEST MODEL:&quot;</span><span class="s2">)</span>
+
+<span class="s0"># -- TODO</span>
+<span class="s1">generalization_score </span><span class="s2">= </span><span class="s1">model_final</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_test_scaled</span><span class="s2">, </span><span class="s1">Y_test</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Estimate of the generalization score for best SVM model: &quot;</span><span class="s2">, </span><span class="s1">generalization_score</span><span class="s2">)</span>
+
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO - ANSWER THE FOLLOWING 
+ 
+Print the **training score** (score on data used to train the model) and the **generalization score** (score on data used to assess generalization) of the final SVM model THAT YOU OBTAIN WHEN YOU RUN THE CODE, one per line, printing the smallest one first.  
+ 
+NOTE: THE VALUES HERE SHOULD BE HARDCODED. 
+ 
+Print you answer (YES/NO) to the following question: does the relation (i.e., smaller, larger) between the training score and the generalization score agree with the theory? 
+ 
+Print your motivation for the YES/NO answer above, using at most 500 characters. 
+</span><span class="s0">#%% 
+</span><span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;</span><span class="s4">\n</span><span class="s5">ANSWER&quot;</span><span class="s2">)</span>
+
+<span class="s0"># -- TODO</span>
+
+<span class="s0"># -- note that you may have to invert the order of the following 2 lines, print the smallest 1 first</span>
+<span class="s1">training_score </span><span class="s2">= </span><span class="s1">model_final</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">)</span>
+<span class="s4">if </span><span class="s1">generalization_score </span><span class="s2">&lt; </span><span class="s1">training_score</span><span class="s2">:</span>
+    <span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Generalization score: &quot;</span><span class="s2">, </span><span class="s1">generalization_score</span><span class="s2">)</span>
+    <span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Training score: &quot;</span><span class="s2">, </span><span class="s1">training_score</span><span class="s2">)</span>
+<span class="s4">else</span><span class="s2">:</span>
+    <span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Training score: &quot;</span><span class="s2">, </span><span class="s1">training_score</span><span class="s2">)</span>
+    <span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Generalization score: &quot;</span><span class="s2">, </span><span class="s1">generalization_score</span><span class="s2">)</span>
+
+<span class="s0"># -- the following is a string with you answer</span>
+<span class="s1">motivation </span><span class="s2">= </span><span class="s5">&quot;YES, the training score is usually higher than the generalization score because the model is fitted to the training data, resulting in potentially higher performance on it compared to unseen data.&quot;</span>
+
+
+<span class="s1">print</span><span class="s2">(</span><span class="s1">motivation</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO: LEARN A STANDARD LINEAR MODEL 
+Learn a standard linear model using scikit learn. 
+ 
+Print the **score** of the model on the data used to learn it. 
+ 
+Print the **generalization score** of the model. 
+</span><span class="s0">#%% 
+</span><span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;</span><span class="s4">\n</span><span class="s5">LR MODEL&quot;</span><span class="s2">)</span>
+<span class="s0"># -- TODO</span>
+<span class="s1">linear_model_lr </span><span class="s2">= </span><span class="s1">linear_model</span><span class="s2">.</span><span class="s1">LinearRegression</span><span class="s2">()</span>
+<span class="s1">linear_model_lr</span><span class="s2">.</span><span class="s1">fit</span><span class="s2">(</span><span class="s1">X_train_and_val_scaled</span><span class="s2">, </span><span class="s1">Y_train_val</span><span class="s2">)</span>
+
+<span class="s1">training_score_lr </span><span class="s2">= </span><span class="s1">linear_model_lr</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_train_and_val_scaled</span><span class="s2">, </span><span class="s1">Y_train_val</span><span class="s2">)</span>
+<span class="s1">generalization_score_lr </span><span class="s2">= </span><span class="s1">linear_model_lr</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_test_scaled</span><span class="s2">, </span><span class="s1">Y_test</span><span class="s2">)</span>
+
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Score of LR model on data used to learn it: &quot;</span><span class="s2">, </span><span class="s1">training_score_lr</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Generalization score of LR model: &quot;</span><span class="s2">, </span><span class="s1">generalization_score_lr</span><span class="s2">)</span></pre>
+</body>
+</html>

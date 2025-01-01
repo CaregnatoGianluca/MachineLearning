@@ -1,0 +1,446 @@
+<html>
+<head>
+<title>DT_GianlucaCaregnato_2157859.ipynb</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #7a7e85;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #2aacb8;}
+.s4 { color: #cf8e6d;}
+.s5 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+DT_GianlucaCaregnato_2157859.ipynb</font>
+</center></td></tr></table>
+<pre><span class="s0">#%% md 
+</span><span class="s1">#  Decision Tree on Complete Diamonds Price Dataset 
+ 
+The **Diamonds dataset** from Kaggle is a dataset containing information about the physical and pricing attributes of nearly 54,000 diamonds. 
+ 
+Compared to Homework 1, in this case we will consider 8,000 samples of the **complete** dataset (i.e. without excluding categorical variables). 
+ 
+### Key Features: 
+- **Carat**: The weight of the diamond. 
+- **Cut**: Quality of the cut. 
+- **Color**: Diamond colour. 
+- **Clarity**: The measurement of how clear the diamond is. 
+- **Depth**: The total depth percentage (z / mean(x, y)). 
+- **Table**: Width of the diamond's top as a percentage of its widest point. 
+- **Price**: Price in US dollars. 
+- **X, Y, Z**: Dimensions of the diamond in mm (length, width, depth). 
+ 
+This dataset is useful for exploring relationships between physical attributes and pricing, and for building predictive models to estimate diamond prices based on their features. 
+ 
+For more information see: https://www.kaggle.com/datasets/shivam2503/diamonds. 
+</span><span class="s0">#%% md 
+</span><span class="s1"># Overview 
+ 
+In the notebook you will perform a complete pipeline of decision tree - regression task.  
+First, you will: 
+- perform the ordinal encoding of categorical variables; 
+- split the data into training and test set; 
+- standardize the data. 
+ 
+You will then be asked to learn various decision tree models.  
+ 
+1. Start by training a decision tree without any limitations (i.e., leaving the **default hyperparameters**). 
+2. Next, try to set a **different value for max_depth** hyperparameter to see what happens. 
+3. Then, identify the optimal max_depth through **cross-validation**. 
+5. Learn the decision tree with optimal max_depth found above. 
+6. Inspect the importance of each feature and print the name of the best ones. 
+7. Compare the best decision tree obtained above with a standard Linear Regressor. 
+  
+### IMPORTANT. 
+- Note that in each of the above steps you will have to choose the appropriate split of the data (see the second bullet point above); 
+- The code should run without requiring modifications even if some best choice of parameters changes; for example, you should not pass the best value of hyperparameters &quot;manually&quot; (i.e., passing the values as input parameters to the models). The only exception is in the TO DO titled 'ANSWER THE FOLLOWING' 
+- Do not change the printing instructions (other than adding the correct variable name for your code), and do not add printing instructions! 
+</span><span class="s0">#%% md 
+</span><span class="s1">## TO DO -- Insert your ID number (&quot;numero di matricola&quot;) below 
+</span><span class="s0">#%% 
+# -- put here your ID Number (&quot;numero di matricola&quot;)</span>
+<span class="s1">numero_di_matricola </span><span class="s2">= </span><span class="s3">2157859</span>
+<span class="s0">#%% 
+# -- import some packages</span>
+<span class="s2">%</span><span class="s1">matplotlib inline</span>
+<span class="s4">import </span><span class="s1">pandas </span><span class="s4">as </span><span class="s1">pd</span>
+<span class="s4">import </span><span class="s1">numpy </span><span class="s4">as </span><span class="s1">np</span>
+<span class="s4">import </span><span class="s1">matplotlib</span><span class="s2">.</span><span class="s1">pyplot </span><span class="s4">as </span><span class="s1">plt</span>
+<span class="s0">#%% 
+# -- load the data (csv format)</span>
+<span class="s1">df </span><span class="s2">= </span><span class="s1">pd</span><span class="s2">.</span><span class="s1">read_csv</span><span class="s2">(</span><span class="s5">'diamonds.csv'</span><span class="s2">, </span><span class="s1">sep </span><span class="s2">= </span><span class="s5">','</span><span class="s2">)</span>
+
+<span class="s0"># -- remove the data samples with missing values (NaN)</span>
+<span class="s1">df </span><span class="s2">= </span><span class="s1">df</span><span class="s2">.</span><span class="s1">dropna</span><span class="s2">()</span>
+
+<span class="s0"># -- drop the column containing the id of the data</span>
+<span class="s1">df </span><span class="s2">= </span><span class="s1">df</span><span class="s2">.</span><span class="s1">drop</span><span class="s2">(</span><span class="s1">columns</span><span class="s2">=[</span><span class="s5">'Unnamed: 0'</span><span class="s2">], </span><span class="s1">axis</span><span class="s2">=</span><span class="s3">1</span><span class="s2">)</span>
+
+<span class="s0"># -- print the column names together with their data type</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s1">df</span><span class="s2">.</span><span class="s1">dtypes</span><span class="s2">)</span>
+<span class="s0">#%% 
+# -- print the first 5 rows of the dataframe</span>
+<span class="s1">df</span><span class="s2">.</span><span class="s1">head</span><span class="s2">()</span>
+<span class="s0">#%% md 
+</span><span class="s1">In the following cell, we convert our (pandas) dataframe into set X (containing our features) and the set Y (containing our target, i.e., the price) 
+</span><span class="s0">#%% 
+# -- compute X and Y sets</span>
+<span class="s1">X </span><span class="s2">= </span><span class="s1">df</span><span class="s2">.</span><span class="s1">drop</span><span class="s2">(</span><span class="s1">columns</span><span class="s2">=[</span><span class="s5">'price'</span><span class="s2">], </span><span class="s1">axis</span><span class="s2">=</span><span class="s3">1</span><span class="s2">)</span>
+<span class="s1">Y </span><span class="s2">= </span><span class="s1">df</span><span class="s2">[</span><span class="s5">'price'</span><span class="s2">]</span>
+
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Total number of samples:&quot;</span><span class="s2">, </span><span class="s1">X</span><span class="s2">.</span><span class="s1">shape</span><span class="s2">[</span><span class="s3">0</span><span class="s2">])</span>
+
+<span class="s0"># -- print the features names</span>
+<span class="s1">features_names </span><span class="s2">= </span><span class="s1">list</span><span class="s2">(</span><span class="s1">X</span><span class="s2">.</span><span class="s1">columns</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Features names:&quot;</span><span class="s2">, </span><span class="s1">features_names</span><span class="s2">)</span>
+
+<span class="s1">X </span><span class="s2">= </span><span class="s1">X</span><span class="s2">.</span><span class="s1">values</span>
+<span class="s1">Y </span><span class="s2">= </span><span class="s1">Y</span><span class="s2">.</span><span class="s1">values</span>
+
+<span class="s0"># -- print shapes</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">'X shape: '</span><span class="s2">, </span><span class="s1">X</span><span class="s2">.</span><span class="s1">shape</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">'Y shape: '</span><span class="s2">, </span><span class="s1">Y</span><span class="s2">.</span><span class="s1">shape</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1"># Data Pre-Processing 
+</span><span class="s0">#%% md 
+</span><span class="s1">## TO DO -- ORDINAL ENCODING OF CATEGORICAL VARIABLES 
+ 
+Use the $\texttt{preprocessing.OrdinalEncoder}$ from scikit learn to perform ordinal encoding of the three categorical variables: **cut**, **color**, and **clarity**. 
+ 
+***NOTE***: Use the input parameter $\texttt{categories}$ to specify, from worst to best, the levels for each categorical variable. In detail: 
+- Cut: ['Fair', 'Good', 'Very Good', 'Premium', 'Ideal'] 
+- Color: ['J', 'I', 'H', 'G', 'F', 'E', 'D'] 
+- Clarity: ['I1', 'SI2', 'SI1', 'VS2', 'VS1', 'VVS2', 'VVS1', 'IF'] 
+ 
+For more information see: https://www.kaggle.com/datasets/shivam2503/diamonds. 
+</span><span class="s0">#%% md 
+</span><span class="s1">We first print the data type of each column, returning both column name and its corresponding index in X. 
+</span><span class="s0">#%% 
+# -- print the data type of each column</span>
+<span class="s4">for </span><span class="s1">index_col</span><span class="s2">, </span><span class="s1">name_col </span><span class="s4">in </span><span class="s1">zip</span><span class="s2">(</span><span class="s1">range</span><span class="s2">(</span><span class="s1">X</span><span class="s2">.</span><span class="s1">shape</span><span class="s2">[</span><span class="s3">1</span><span class="s2">]), </span><span class="s1">features_names</span><span class="s2">):</span>
+    <span class="s1">print</span><span class="s2">(</span><span class="s5">f&quot;Column </span><span class="s4">{</span><span class="s1">name_col</span><span class="s4">} </span><span class="s5">(index: </span><span class="s4">{</span><span class="s1">index_col</span><span class="s4">}</span><span class="s5">) -- data type: </span><span class="s4">{</span><span class="s1">type</span><span class="s2">(</span><span class="s1">X</span><span class="s2">[</span><span class="s3">0</span><span class="s2">, </span><span class="s1">index_col</span><span class="s2">])</span><span class="s4">}</span><span class="s5">&quot;</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1">Now let's encode the categorical variables. 
+</span><span class="s0">#%% 
+</span><span class="s4">from </span><span class="s1">sklearn</span><span class="s2">.</span><span class="s1">preprocessing </span><span class="s4">import </span><span class="s1">OrdinalEncoder</span>
+
+<span class="s0"># -- TO DO</span>
+<span class="s1">encoder </span><span class="s2">= </span><span class="s1">OrdinalEncoder</span><span class="s2">(</span><span class="s1">categories </span><span class="s2">= [</span>
+    <span class="s2">[</span><span class="s5">'Fair'</span><span class="s2">, </span><span class="s5">'Good'</span><span class="s2">, </span><span class="s5">'Very Good'</span><span class="s2">, </span><span class="s5">'Premium'</span><span class="s2">, </span><span class="s5">'Ideal'</span><span class="s2">],</span>
+    <span class="s2">[</span><span class="s5">'J'</span><span class="s2">, </span><span class="s5">'I'</span><span class="s2">, </span><span class="s5">'H'</span><span class="s2">, </span><span class="s5">'G'</span><span class="s2">, </span><span class="s5">'F'</span><span class="s2">, </span><span class="s5">'E'</span><span class="s2">, </span><span class="s5">'D'</span><span class="s2">],</span>
+    <span class="s2">[</span><span class="s5">'I1'</span><span class="s2">, </span><span class="s5">'SI2'</span><span class="s2">, </span><span class="s5">'SI1'</span><span class="s2">, </span><span class="s5">'VS2'</span><span class="s2">, </span><span class="s5">'VS1'</span><span class="s2">, </span><span class="s5">'VVS2'</span><span class="s2">, </span><span class="s5">'VVS1'</span><span class="s2">, </span><span class="s5">'IF'</span><span class="s2">],])</span>
+
+<span class="s1">X</span><span class="s2">[:,</span><span class="s3">1</span><span class="s2">:</span><span class="s3">4</span><span class="s2">] = </span><span class="s1">encoder</span><span class="s2">.</span><span class="s1">fit_transform</span><span class="s2">(</span><span class="s1">X</span><span class="s2">[:,</span><span class="s3">1</span><span class="s2">:</span><span class="s3">4</span><span class="s2">])</span>
+
+<span class="s0">#%% md 
+</span><span class="s1">Check if the encoding was done correctly. 
+</span><span class="s0">#%% 
+# -- print the data type of each column</span>
+<span class="s4">for </span><span class="s1">index_col</span><span class="s2">, </span><span class="s1">name_col </span><span class="s4">in </span><span class="s1">zip</span><span class="s2">(</span><span class="s1">range</span><span class="s2">(</span><span class="s1">X</span><span class="s2">.</span><span class="s1">shape</span><span class="s2">[</span><span class="s3">1</span><span class="s2">]), </span><span class="s1">features_names</span><span class="s2">):</span>
+    <span class="s1">print</span><span class="s2">(</span><span class="s5">f&quot;Column </span><span class="s4">{</span><span class="s1">name_col</span><span class="s4">} </span><span class="s5">(index: </span><span class="s4">{</span><span class="s1">index_col</span><span class="s4">}</span><span class="s5">) -- data type: </span><span class="s4">{</span><span class="s1">type</span><span class="s2">(</span><span class="s1">X</span><span class="s2">[</span><span class="s3">0</span><span class="s2">, </span><span class="s1">index_col</span><span class="s2">])</span><span class="s4">}</span><span class="s5">&quot;</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO -- SPLIT DATA INTO TRAINING AND TEST SET, WITH THE FOLLOWING PERCENTAGES: 80% AND 20% 
+ 
+First, compute the number of samples to be included in the training set (i.e., 80% of the data) and the number of samples to be included in the test set (i.e., 20% of the data) and print such values. 
+</span><span class="s0">#%% 
+# -- split data into train (4/5 of samples) and test data (1/5 of samples)</span>
+
+<span class="s0"># -- TO DO</span>
+<span class="s4">from </span><span class="s1">sklearn</span><span class="s2">.</span><span class="s1">model_selection </span><span class="s4">import </span><span class="s1">train_test_split</span>
+
+<span class="s1">X_test_len </span><span class="s2">= </span><span class="s1">int</span><span class="s2">(</span><span class="s1">X</span><span class="s2">.</span><span class="s1">shape</span><span class="s2">[</span><span class="s3">0</span><span class="s2">] * </span><span class="s3">0.2</span><span class="s2">)</span>
+
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Amount of data for training and deciding parameters:&quot;</span><span class="s2">, </span><span class="s1">X</span><span class="s2">.</span><span class="s1">shape</span><span class="s2">[</span><span class="s3">0</span><span class="s2">] - </span><span class="s1">X_test_len</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Amount of data for test:&quot;</span><span class="s2">, </span><span class="s1">X_test_len</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1">Next, use the $\texttt{train\_test\_split}$ function from sklearn.model_selection to split the data; in every call fix $\texttt{random\_state}$ to your numero_di_matricola.  
+At the end, you should store the data in the following variables: 
+- X_train, Y_train: training data; 
+- X_test, Y_test: test data. 
+</span><span class="s0">#%% 
+</span><span class="s4">from </span><span class="s1">sklearn</span><span class="s2">.</span><span class="s1">model_selection </span><span class="s4">import </span><span class="s1">train_test_split</span>
+
+<span class="s0"># -- TO DO</span>
+
+<span class="s1">X_train</span><span class="s2">, </span><span class="s1">X_test</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">, </span><span class="s1">Y_test </span><span class="s2">= </span><span class="s1">train_test_split</span><span class="s2">(</span><span class="s1">X</span><span class="s2">, </span><span class="s1">Y</span><span class="s2">, </span><span class="s1">test_size </span><span class="s2">= </span><span class="s1">X_test_len</span><span class="s2">, </span><span class="s1">random_state </span><span class="s2">= </span><span class="s1">numero_di_matricola</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO -- DATA STANDARDIZATION 
+</span><span class="s0">#%% md 
+</span><span class="s1">Stardardise the data using $\texttt{preprocessing.Standardscaler}$ from scikit learn. 
+ 
+If V is the name of the variable storing part of the data, the corresponding standardized version should be stored in V_scaled. For example, the scaled version of X_train should be stored in X_train_scaled. 
+  
+For simplicity, with the function $\texttt{copy}$, create a copy of the variable V by calling it V_scaled and then apply the scaler to this copy. 
+ 
+***NOTE***: standardise only the 6 continuous variables (**carat**, **depth**, **table**, **x**, **y**, **z**) and not the 3 categorical variables just encoded. 
+</span><span class="s0">#%% 
+# -- data standardization</span>
+<span class="s0"># -- TO DO</span>
+<span class="s4">from </span><span class="s1">sklearn</span><span class="s2">.</span><span class="s1">preprocessing </span><span class="s4">import </span><span class="s1">StandardScaler</span>
+
+<span class="s1">continuous_variables_index </span><span class="s2">= [</span><span class="s3">0</span><span class="s2">,</span><span class="s3">4</span><span class="s2">,</span><span class="s3">5</span><span class="s2">,</span><span class="s3">6</span><span class="s2">,</span><span class="s3">7</span><span class="s2">,</span><span class="s3">8</span><span class="s2">]</span>
+<span class="s1">scaler </span><span class="s2">= </span><span class="s1">StandardScaler</span><span class="s2">().</span><span class="s1">fit</span><span class="s2">(</span><span class="s1">X_train</span><span class="s2">[:, </span><span class="s1">continuous_variables_index</span><span class="s2">])</span>
+
+<span class="s1">X_train_scaled </span><span class="s2">= </span><span class="s1">X_train</span><span class="s2">.</span><span class="s1">copy</span><span class="s2">()</span>
+<span class="s1">X_test_scaled </span><span class="s2">= </span><span class="s1">X_test</span><span class="s2">.</span><span class="s1">copy</span><span class="s2">()</span>
+
+<span class="s1">X_train_scaled</span><span class="s2">[:, </span><span class="s1">continuous_variables_index</span><span class="s2">] = </span><span class="s1">scaler</span><span class="s2">.</span><span class="s1">transform</span><span class="s2">(</span><span class="s1">X_train</span><span class="s2">[:, </span><span class="s1">continuous_variables_index</span><span class="s2">])</span>
+<span class="s1">X_test_scaled</span><span class="s2">[:, </span><span class="s1">continuous_variables_index</span><span class="s2">] = </span><span class="s1">scaler</span><span class="s2">.</span><span class="s1">transform</span><span class="s2">(</span><span class="s1">X_test</span><span class="s2">[:, </span><span class="s1">continuous_variables_index</span><span class="s2">])</span>
+
+<span class="s0">#%% md 
+</span><span class="s1"># Decision tree models 
+</span><span class="s0">#%% md 
+</span><span class="s1">Decision trees are supervised machine learning models used for both **classification** and **regression** tasks. They are structured like a tree, where each node represents a condition on the data, each branch corresponds to a possible answer, and the leaves represent the final outcome (class or value). In this homework, you will use decision trees in a regression setting to predict the price of diamonds. 
+</span><span class="s0">#%% md 
+</span><span class="s1">## TO DO -- DEFAULT SETTINGS 
+ 
+Learn a decision tree leaving the default values for the hyperparameters. Set only $\texttt{random\_state}$ to your numero_di_matricola. 
+</span><span class="s0">#%% 
+</span><span class="s4">from </span><span class="s1">sklearn</span><span class="s2">.</span><span class="s1">tree </span><span class="s4">import </span><span class="s1">DecisionTreeRegressor</span>
+<span class="s0"># -- TO DO</span>
+<span class="s1">decision_tree </span><span class="s2">= </span><span class="s1">DecisionTreeRegressor</span><span class="s2">(</span><span class="s1">random_state </span><span class="s2">= </span><span class="s1">numero_di_matricola</span><span class="s2">)</span>
+<span class="s1">decision_tree</span><span class="s2">.</span><span class="s1">fit</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">)</span>
+
+<span class="s0">#%% md 
+</span>
+<span class="s0">#%% md 
+</span><span class="s1">Print the value of 1 - coefficient of determination $(R^2)$, to evaluate how well the model fits both the training and test data.  
+</span><span class="s0">#%% 
+</span><span class="s1">print</span><span class="s2">(</span><span class="s1">decision_tree</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">,</span><span class="s1">Y_train</span><span class="s2">))</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;1 - coefficient of determination on training data:&quot;</span><span class="s2">, </span><span class="s3">1 </span><span class="s2">- </span><span class="s1">decision_tree</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">))</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;1 - coefficient of determination on test data:&quot;</span><span class="s2">, </span><span class="s3">1 </span><span class="s2">- </span><span class="s1">decision_tree</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_test_scaled</span><span class="s2">, </span><span class="s1">Y_test</span><span class="s2">))</span>
+<span class="s0">#%% md 
+</span><span class="s1">Check what are some of the characteristics of the tree, like its depth and the number of nodes. 
+ 
+In detail, print: 
+- ***max_depth***: limits the maximum depth of the tree, controlling how many splits it can make. 
+- ***node_count***: represents the total number of nodes in the tree, including both internal nodes and leaf nodes. 
+</span><span class="s0">#%% 
+</span><span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Depth of the tree:&quot;</span><span class="s2">, </span><span class="s1">decision_tree</span><span class="s2">.</span><span class="s1">tree_</span><span class="s2">.</span><span class="s1">max_depth</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Number of nodes:&quot;</span><span class="s2">, </span><span class="s1">decision_tree</span><span class="s2">.</span><span class="s1">tree_</span><span class="s2">.</span><span class="s1">node_count</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO -- ANSWER THE FOLLOWING 
+</span><span class="s0">#%% md 
+</span><span class="s1">Answer the following question (max 500 characters): 
+ 
+Based on the 1 - coefficient of determination $(R^2)$ values on training and test set and based on the max_depth/node_count, what conclusions could you draw regarding the trained model? 
+</span><span class="s0">#%% 
+</span><span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;</span><span class="s4">\n</span><span class="s5">ANSWER&quot;</span><span class="s2">)</span>
+
+<span class="s0"># -- the following is a string with you answer</span>
+<span class="s0"># -- TO DO</span>
+<span class="s1">motivation </span><span class="s2">= </span><span class="s5">&quot;The model has a 1 - R^2 value of 0.0 on the training data, indicating a perfect fit. However on the test data, 1 - R^2 value is 0.04543110731160194, showing a bad generalization. The tree's high depth 30 and large node count 12475 suggest that we are overfitting. We could try to reduce the tree's depth to improve its ability to generalize to new data.&quot;</span>
+
+<span class="s1">print</span><span class="s2">(</span><span class="s1">motivation</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO -- SET A DIFFERENT VALUE FOR max_depth 
+ 
+Now, try with a different value for $\texttt{max\_depth}$ hyperparameter. Set it equals to 2 and $\texttt{random\_state}$ to your numero_di_matricola, than fit the decision tree. 
+</span><span class="s0">#%% 
+# -- TO DO</span>
+<span class="s1">decision_tree_depth_2 </span><span class="s2">= </span><span class="s1">DecisionTreeRegressor</span><span class="s2">(</span><span class="s1">max_depth </span><span class="s2">= </span><span class="s3">2</span><span class="s2">, </span><span class="s1">random_state </span><span class="s2">= </span><span class="s1">numero_di_matricola</span><span class="s2">)</span>
+<span class="s1">decision_tree_depth_2</span><span class="s2">.</span><span class="s1">fit</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1">Let's print the error obtained by this model on both training and test data. 
+</span><span class="s0">#%% 
+# -- print the value of 1 - coefficient of determination R^2, for the training and test data</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;1 - coefficient of determination on training data:&quot;</span><span class="s2">, </span><span class="s3">1 </span><span class="s2">- </span><span class="s1">decision_tree_depth_2</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">))</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;1 - coefficient of determination on test data:&quot;</span><span class="s2">,</span><span class="s3">1 </span><span class="s2">- </span><span class="s1">decision_tree_depth_2</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_test_scaled</span><span class="s2">, </span><span class="s1">Y_test</span><span class="s2">))</span>
+<span class="s0">#%% md 
+</span><span class="s1">Let's plot the tree. 
+</span><span class="s0">#%% 
+</span><span class="s4">from </span><span class="s1">sklearn </span><span class="s4">import </span><span class="s1">tree</span>
+
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">figure</span><span class="s2">()</span>
+<span class="s1">tree</span><span class="s2">.</span><span class="s1">plot_tree</span><span class="s2">(</span><span class="s1">decision_tree </span><span class="s2">= </span><span class="s1">decision_tree_depth_2</span><span class="s2">, </span>
+               <span class="s1">feature_names</span><span class="s2">=</span><span class="s1">features_names</span><span class="s2">, </span>
+               <span class="s1">class_names</span><span class="s2">=[</span><span class="s5">'price'</span><span class="s2">], </span>
+               <span class="s1">filled</span><span class="s2">=</span><span class="s4">True</span><span class="s2">)</span>
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">savefig</span><span class="s2">(</span><span class="s5">'tree.pdf'</span><span class="s2">)</span>
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">show</span><span class="s2">()</span>
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO -- ANSWER THE FOLLOWING 
+</span><span class="s0">#%% md 
+</span><span class="s1">Answer the following question (max 500 characters): 
+ 
+Based on the 1 - coefficient of determination $(R^2)$ values on training and test set and based on the max_depth/node_count, what conclusions could you draw regarding this new trained model? 
+</span><span class="s0">#%% 
+</span><span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;</span><span class="s4">\n</span><span class="s5">ANSWER&quot;</span><span class="s2">)</span>
+
+<span class="s0"># -- the following is a string with you answer</span>
+<span class="s0"># -- TO DO</span>
+<span class="s1">motivation </span><span class="s2">= </span><span class="s5">&quot;With 1 - R^2 = 0.17146098309621216 on training data and 1 - R^2 = 0.17808950979975158 on test data, the model shows balanced performance between training and test sets, indicating less overfitting compared to the deeper tree. However, the model's simplicity (low depth) leads to limited predictive power. The reduction in depth has improved generalization but at the cost of underfitting.&quot;</span>
+
+<span class="s1">print</span><span class="s2">(</span><span class="s1">motivation</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO -- DECISION TREE WITH CROSS-VALIDATION FOR max_depth TUNING 
+</span><span class="s0">#%% md 
+</span><span class="s1">Perform $k$-fold cross validation (with $k$ = 5) with respect to the parameter $\texttt{max\_depth}$, with $\texttt{max\_depth}$ ranging from 1 to 30 included. 
+ 
+**Note**: consider only **integer** values for $\texttt{max\_depth}$! 
+ 
+At the end, note that you need to store in $\texttt{max\_depth\_opt}$ the best value for $\texttt{max\_depth}$ you found with the cross-validation procedure. 
+</span><span class="s0">#%% 
+</span><span class="s4">from </span><span class="s1">sklearn</span><span class="s2">.</span><span class="s1">model_selection </span><span class="s4">import </span><span class="s1">KFold</span>
+
+<span class="s0"># -- define the grid for the max_depth hyperparameter</span>
+
+<span class="s1">max_depth_grid </span><span class="s2">= </span><span class="s1">range</span><span class="s2">(</span><span class="s3">1</span><span class="s2">,</span><span class="s3">31</span><span class="s2">)</span>
+
+<span class="s0"># -- initialize the vector for the errors (1 - R^2)</span>
+
+<span class="s1">err_train_kfold </span><span class="s2">= </span><span class="s1">np</span><span class="s2">.</span><span class="s1">zeros</span><span class="s2">(</span><span class="s1">len</span><span class="s2">(</span><span class="s1">max_depth_grid</span><span class="s2">),)</span>
+<span class="s1">err_val_kfold </span><span class="s2">= </span><span class="s1">np</span><span class="s2">.</span><span class="s1">zeros</span><span class="s2">(</span><span class="s1">len</span><span class="s2">(</span><span class="s1">max_depth_grid</span><span class="s2">),)</span>
+
+<span class="s0"># -- perform kfold cross validation for model selection (k = 5)</span>
+
+<span class="s0"># -- TO DO</span>
+<span class="s1">num_folds </span><span class="s2">= </span><span class="s3">5</span>
+<span class="s1">kf </span><span class="s2">= </span><span class="s1">KFold</span><span class="s2">(</span><span class="s1">n_splits </span><span class="s2">= </span><span class="s1">num_folds</span><span class="s2">)</span>
+
+<span class="s0"># -- choose the regularization parameter that minimizes the loss</span>
+
+<span class="s4">for </span><span class="s1">i</span><span class="s2">, </span><span class="s1">depth </span><span class="s4">in </span><span class="s1">enumerate</span><span class="s2">(</span><span class="s1">max_depth_grid</span><span class="s2">):</span>
+    
+    <span class="s1">decision_tree_3 </span><span class="s2">= </span><span class="s1">DecisionTreeRegressor</span><span class="s2">(</span><span class="s1">max_depth </span><span class="s2">= </span><span class="s1">depth</span><span class="s2">, </span><span class="s1">random_state </span><span class="s2">= </span><span class="s1">numero_di_matricola</span><span class="s2">)</span>
+
+    <span class="s4">for </span><span class="s1">train_index</span><span class="s2">, </span><span class="s1">validation_index </span><span class="s4">in </span><span class="s1">kf</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">):</span>
+        
+        <span class="s1">X_train_kfold</span><span class="s2">, </span><span class="s1">X_val_kfold </span><span class="s2">= </span><span class="s1">X_train_scaled</span><span class="s2">[</span><span class="s1">train_index</span><span class="s2">], </span><span class="s1">X_train_scaled</span><span class="s2">[</span><span class="s1">validation_index</span><span class="s2">]</span>
+        <span class="s1">Y_train_kfold</span><span class="s2">, </span><span class="s1">Y_val_kfold </span><span class="s2">= </span><span class="s1">Y_train</span><span class="s2">[</span><span class="s1">train_index</span><span class="s2">], </span><span class="s1">Y_train</span><span class="s2">[</span><span class="s1">validation_index</span><span class="s2">]</span>
+
+        <span class="s1">scaler </span><span class="s2">= </span><span class="s1">StandardScaler</span><span class="s2">().</span><span class="s1">fit</span><span class="s2">(</span><span class="s1">X_train_kfold</span><span class="s2">)</span>
+        <span class="s1">X_train_kfold_scaled </span><span class="s2">= </span><span class="s1">scaler</span><span class="s2">.</span><span class="s1">transform</span><span class="s2">(</span><span class="s1">X_train_kfold</span><span class="s2">)        </span>
+        <span class="s1">X_val_kfold_scaled </span><span class="s2">= </span><span class="s1">scaler</span><span class="s2">.</span><span class="s1">transform</span><span class="s2">(</span><span class="s1">X_val_kfold</span><span class="s2">)</span>
+        
+        <span class="s1">decision_tree_3</span><span class="s2">.</span><span class="s1">fit</span><span class="s2">(</span><span class="s1">X_train_kfold_scaled</span><span class="s2">, </span><span class="s1">Y_train_kfold</span><span class="s2">)</span>
+        
+        <span class="s1">err_val_kfold</span><span class="s2">[</span><span class="s1">i</span><span class="s2">] += (</span><span class="s3">1 </span><span class="s2">- </span><span class="s1">decision_tree_3</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_val_kfold_scaled</span><span class="s2">, </span><span class="s1">Y_val_kfold</span><span class="s2">))    </span>
+        <span class="s1">err_train_kfold</span><span class="s2">[</span><span class="s1">i</span><span class="s2">] += (</span><span class="s3">1 </span><span class="s2">- </span><span class="s1">decision_tree_3</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_train_kfold_scaled</span><span class="s2">, </span><span class="s1">Y_train_kfold</span><span class="s2">))      </span>
+
+<span class="s0"># Compute the mean</span>
+<span class="s1">err_val_kfold </span><span class="s2">/= </span><span class="s1">num_folds</span>
+<span class="s1">err_train_kfold </span><span class="s2">/= </span><span class="s1">num_folds</span>
+
+<span class="s1">max_depth_opt </span><span class="s2">= </span><span class="s1">max_depth_grid</span><span class="s2">[</span><span class="s1">np</span><span class="s2">.</span><span class="s1">argmin</span><span class="s2">(</span><span class="s1">err_val_kfold</span><span class="s2">)]</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">'Best value of the max_depth parameter:'</span><span class="s2">, </span><span class="s1">max_depth_opt</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">'Min. validation error (1 - R²) '</span><span class="s2">, </span><span class="s1">np</span><span class="s2">.</span><span class="s1">min</span><span class="s2">(</span><span class="s1">err_val_kfold</span><span class="s2">))</span>
+
+<span class="s0">#%% md 
+</span><span class="s1">Plot validation and test error (1 - $R^2$) for different values of $\texttt{max\_depth}$. 
+</span><span class="s0">#%% 
+# -- plot the training error</span>
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">plot</span><span class="s2">(</span><span class="s1">max_depth_grid</span><span class="s2">, </span>
+         <span class="s1">err_train_kfold</span><span class="s2">, </span>
+         <span class="s1">color</span><span class="s2">=</span><span class="s5">'r'</span><span class="s2">, </span>
+         <span class="s1">marker</span><span class="s2">=</span><span class="s5">'x'</span><span class="s2">)</span>
+
+<span class="s0"># -- plot the validation error</span>
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">plot</span><span class="s2">(</span><span class="s1">max_depth_grid</span><span class="s2">, </span>
+         <span class="s1">err_val_kfold</span><span class="s2">, </span>
+         <span class="s1">color</span><span class="s2">=</span><span class="s5">'b'</span><span class="s2">, </span>
+         <span class="s1">marker</span><span class="s2">=</span><span class="s5">'x'</span><span class="s2">)</span>
+
+<span class="s0"># -- highlight min loss</span>
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">scatter</span><span class="s2">(</span><span class="s1">max_depth_opt</span><span class="s2">, </span>
+            <span class="s1">np</span><span class="s2">.</span><span class="s1">min</span><span class="s2">(</span><span class="s1">err_val_kfold</span><span class="s2">), </span>
+            <span class="s1">color</span><span class="s2">=</span><span class="s5">'b'</span><span class="s2">, </span>
+            <span class="s1">marker</span><span class="s2">=</span><span class="s5">'o'</span><span class="s2">, </span>
+            <span class="s1">linewidths</span><span class="s2">=</span><span class="s3">5</span><span class="s2">)</span>
+
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">legend</span><span class="s2">([</span><span class="s5">'Train'</span><span class="s2">, </span><span class="s5">'Validation'</span><span class="s2">])</span>
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">xlabel</span><span class="s2">(</span><span class="s5">'max_depth'</span><span class="s2">)</span>
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">ylabel</span><span class="s2">(</span><span class="s5">'Error'</span><span class="s2">)</span>
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">title</span><span class="s2">(</span><span class="s5">'DecisionTree: choice of max_depth parameter'</span><span class="s2">)</span>
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">savefig</span><span class="s2">(</span><span class="s5">'train_val_loss.pdf'</span><span class="s2">)</span>
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">show</span><span class="s2">()</span>
+<span class="s0">#%% md 
+</span><span class="s1">Learn the final model using the optimal _max_depth_ obtained above and print the error (1 - R²) of the model on both the training and test data. 
+</span><span class="s0">#%% 
+# -- TO DO</span>
+<span class="s1">optimal_max_depth_ </span><span class="s2">= </span><span class="s1">DecisionTreeRegressor</span><span class="s2">(</span><span class="s1">max_depth </span><span class="s2">= </span><span class="s1">max_depth_opt</span><span class="s2">, </span><span class="s1">random_state </span><span class="s2">= </span><span class="s1">numero_di_matricola</span><span class="s2">)</span>
+<span class="s1">optimal_max_depth_</span><span class="s2">.</span><span class="s1">fit</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">)</span>
+
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;1 - coefficient of determination on training data:&quot;</span><span class="s2">, (</span><span class="s3">1 </span><span class="s2">- </span><span class="s1">optimal_max_depth_</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">)))</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;1 - coefficient of determination on test data:&quot;</span><span class="s2">, (</span><span class="s3">1 </span><span class="s2">- </span><span class="s1">optimal_max_depth_</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_test_scaled</span><span class="s2">, </span><span class="s1">Y_test</span><span class="s2">)))</span>
+<span class="s0">#%% md 
+</span><span class="s1">## TO DO -- FEATURE IMPORTANCE 
+</span><span class="s0">#%% md 
+</span><span class="s1">Inspect the importance of each feature for the best decision tree obtained using the property $\texttt{feature\_importances\_}$ of $\texttt{DecisionTreeRegressor}$ class. The importance of a feature is computed as the (normalized) total reduction of the criterion brought by that feature. It is also known as the Gini importance. 
+</span><span class="s0">#%% 
+</span><span class="s1">print</span><span class="s2">(</span><span class="s1">optimal_max_depth_</span><span class="s2">.</span><span class="s1">feature_importances_</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1">Print the names of the three most importante features. To do this: 
+1. Get the indexes of the top-3 features according to their importance; 
+2. Print the name of each of the top-3 feature using the format &quot;feature_name feature_index&quot; (e.g., &quot;depth 4&quot;). 
+</span><span class="s0">#%% 
+# -- get the indexes of the top-3 features</span>
+<span class="s0"># -- TO DO</span>
+<span class="s1">top_features </span><span class="s2">= </span><span class="s1">np</span><span class="s2">.</span><span class="s1">argsort</span><span class="s2">(</span><span class="s1">optimal_max_depth_</span><span class="s2">.</span><span class="s1">feature_importances_</span><span class="s2">)[-</span><span class="s3">3</span><span class="s2">:][::-</span><span class="s3">1</span><span class="s2">]</span>
+<span class="s0"># -- print the name of each of the top-3 features</span>
+<span class="s0"># -- TO DO</span>
+<span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">top_features</span><span class="s2">:</span>
+    <span class="s1">print</span><span class="s2">(</span><span class="s1">features_names</span><span class="s2">[</span><span class="s1">i</span><span class="s2">], </span><span class="s1">i</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1"># TO DO -- ANSWER THE FOLLOWING 
+</span><span class="s0">#%% md 
+</span><span class="s1">Answer the following question (max 500 characters): 
+ 
+What are some advantages of using a Decision Tree with respect to a Deep Neural Network? 
+</span><span class="s0">#%% 
+</span><span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;</span><span class="s4">\n</span><span class="s5">ANSWER&quot;</span><span class="s2">)</span>
+
+<span class="s0"># -- the following is a string with you answer</span>
+<span class="s1">motivation </span><span class="s2">= </span><span class="s5">&quot;One main advantage of decision trees over deep neural networks is that they are easier to understand. Decision trees show which features matter most and how decisions are made. This makes it simple to see how the model works. On the other hand, deep neural networks are like </span><span class="s4">\&quot;</span><span class="s5">black boxes,</span><span class="s4">\&quot; </span><span class="s5">where it’s hard to know which features are important, making it harder to choose or change features. However, decision trees might be less accurate than more complex models.&quot;</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s1">motivation</span><span class="s2">)</span>
+<span class="s0">#%% md 
+</span><span class="s1"># TO DO -- COMPARISON WITH LINEAR REGRESSION 
+</span><span class="s0">#%% md 
+</span><span class="s1">Train a Linear Regression model and compare it with the best decision tree obtained above. 
+</span><span class="s0">#%% 
+</span><span class="s4">from </span><span class="s1">sklearn</span><span class="s2">.</span><span class="s1">linear_model </span><span class="s4">import </span><span class="s1">LinearRegression</span>
+
+<span class="s0"># -- TO DO</span>
+
+<span class="s1">linear_regression </span><span class="s2">= </span><span class="s1">LinearRegression</span><span class="s2">()</span>
+<span class="s1">linear_regression</span><span class="s2">.</span><span class="s1">fit</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">)</span>
+
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Linear Regression training error:&quot;</span><span class="s2">, </span><span class="s3">1 </span><span class="s2">- </span><span class="s1">linear_regression</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">))</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Linear Regression test error:&quot;</span><span class="s2">, </span><span class="s3">1 </span><span class="s2">- </span><span class="s1">linear_regression</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_test_scaled</span><span class="s2">, </span><span class="s1">Y_test</span><span class="s2">))</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Decision Tree training error:&quot;</span><span class="s2">, </span><span class="s3">1 </span><span class="s2">- </span><span class="s1">optimal_max_depth_</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_train_scaled</span><span class="s2">, </span><span class="s1">Y_train</span><span class="s2">))</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;Decision Tree test error:&quot;</span><span class="s2">, </span><span class="s3">1 </span><span class="s2">- </span><span class="s1">optimal_max_depth_</span><span class="s2">.</span><span class="s1">score</span><span class="s2">(</span><span class="s1">X_test_scaled</span><span class="s2">, </span><span class="s1">Y_test</span><span class="s2">))</span>
+<span class="s0">#%% md 
+</span><span class="s1"># ABOUT TREES ... 
+</span><span class="s0">#%% 
+</span><span class="s4">import </span><span class="s1">random</span>
+
+<span class="s4">def </span><span class="s1">christmas_tree</span><span class="s2">():</span>
+    
+    <span class="s1">tree_height </span><span class="s2">= </span><span class="s3">16</span>
+    
+    <span class="s1">print</span><span class="s2">(</span><span class="s5">&quot;</span><span class="s4">\n\n</span><span class="s5">🎄 Merry Christmas! 🎄</span><span class="s4">\n\n</span><span class="s5">&quot;</span><span class="s2">.</span><span class="s1">center</span><span class="s2">(</span><span class="s3">40</span><span class="s2">))</span>
+          
+    <span class="s4">for </span><span class="s1">i </span><span class="s4">in </span><span class="s1">range</span><span class="s2">(</span><span class="s1">tree_height</span><span class="s2">):</span>
+    
+        <span class="s1">spaces </span><span class="s2">= </span><span class="s5">&quot; &quot; </span><span class="s2">* (</span><span class="s1">tree_height </span><span class="s2">- </span><span class="s1">i </span><span class="s2">- </span><span class="s3">1</span><span class="s2">)</span>
+        
+        <span class="s4">if </span><span class="s1">i </span><span class="s2">== </span><span class="s3">0</span><span class="s2">:</span>
+            <span class="s1">layer_content </span><span class="s2">= </span><span class="s5">&quot;⭐&quot;</span>
+        <span class="s4">else</span><span class="s2">:</span>
+            <span class="s1">contents </span><span class="s2">= [ </span><span class="s5">&quot;🍃&quot;</span><span class="s2">, </span><span class="s5">&quot;🟡&quot;</span><span class="s2">, </span><span class="s5">&quot;🔴&quot;</span><span class="s2">, </span><span class="s5">&quot;🔵&quot;</span><span class="s2">]</span>
+            <span class="s1">content </span><span class="s2">= </span><span class="s1">random</span><span class="s2">.</span><span class="s1">choices</span><span class="s2">(</span><span class="s1">contents</span><span class="s2">, </span><span class="s1">weights </span><span class="s2">= [</span><span class="s3">0.7</span><span class="s2">, </span><span class="s3">0.1</span><span class="s2">, </span><span class="s3">0.1</span><span class="s2">, </span><span class="s3">0.1</span><span class="s2">], </span><span class="s1">k </span><span class="s2">= </span><span class="s3">2 </span><span class="s2">* </span><span class="s1">i </span><span class="s2">+ </span><span class="s3">1</span><span class="s2">)</span>
+            <span class="s1">delimiter </span><span class="s2">= </span><span class="s5">&quot;&quot;</span>
+            <span class="s1">layer_content </span><span class="s2">= </span><span class="s1">delimiter</span><span class="s2">.</span><span class="s1">join</span><span class="s2">(</span><span class="s1">content</span><span class="s2">)</span>
+            
+        <span class="s1">print</span><span class="s2">((</span><span class="s1">spaces </span><span class="s2">+ </span><span class="s1">layer_content</span><span class="s2">).</span><span class="s1">center</span><span class="s2">(</span><span class="s3">40</span><span class="s2">))</span>
+            
+    <span class="s1">trunk </span><span class="s2">= </span><span class="s5">&quot; &quot; </span><span class="s2">* (</span><span class="s1">tree_height </span><span class="s2">- </span><span class="s3">1</span><span class="s2">) + </span><span class="s5">&quot;🟫&quot;</span>
+    <span class="s1">print</span><span class="s2">(</span><span class="s1">trunk</span><span class="s2">.</span><span class="s1">center</span><span class="s2">(</span><span class="s3">40</span><span class="s2">))</span>
+
+<span class="s1">christmas_tree</span><span class="s2">()</span></pre>
+</body>
+</html>
